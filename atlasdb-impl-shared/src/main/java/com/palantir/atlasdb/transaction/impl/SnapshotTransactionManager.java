@@ -43,6 +43,7 @@ import com.palantir.atlasdb.transaction.api.PreCommitCondition;
 import com.palantir.atlasdb.transaction.api.Transaction;
 import com.palantir.atlasdb.transaction.api.Transaction.TransactionType;
 import com.palantir.atlasdb.transaction.api.TransactionFailedRetriableException;
+import com.palantir.atlasdb.transaction.api.TransactionKeyValueServiceManager;
 import com.palantir.atlasdb.transaction.api.TransactionReadSentinelBehavior;
 import com.palantir.atlasdb.transaction.api.TransactionTask;
 import com.palantir.atlasdb.transaction.impl.metrics.MemoizingTableLevelMetricsController;
@@ -74,6 +75,7 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicLong;
+import java.util.function.LongSupplier;
 import java.util.function.Supplier;
 import java.util.stream.Collectors;
 
@@ -83,7 +85,7 @@ import java.util.stream.Collectors;
     private static final int NUM_RETRIES = 10;
 
     final MetricsManager metricsManager;
-    final KeyValueService keyValueService;
+    final TransactionKeyValueServiceManager keyValueService;
     final TransactionService transactionService;
     final TimelockService timelockService;
     final LockWatchManagerInternal lockWatchManager;
@@ -112,7 +114,7 @@ import java.util.stream.Collectors;
 
     protected SnapshotTransactionManager(
             MetricsManager metricsManager,
-            KeyValueService keyValueService,
+            TransactionKeyValueServiceManager keyValueService,
             TimelockService timelockService,
             LockWatchManagerInternal lockWatchManager,
             TimestampManagementService timestampManagementService,
@@ -212,8 +214,7 @@ import java.util.stream.Collectors;
                             responses.stream(), conditions.stream(), (response, condition) -> {
                                 LockToken immutableTsLock =
                                         response.immutableTimestamp().getLock();
-                                Supplier<Long> startTimestampSupplier = Suppliers.ofInstance(
-                                        response.startTimestampAndPartition().timestamp());
+                                LongSupplier startTimestampSupplier = response.startTimestampAndPartition()::timestamp;
 
                                 CallbackAwareTransaction transaction = createTransaction(
                                         immutableTs, startTimestampSupplier, immutableTsLock, condition);
@@ -300,12 +301,12 @@ import java.util.stream.Collectors;
 
     protected CallbackAwareTransaction createTransaction(
             long immutableTimestamp,
-            Supplier<Long> startTimestampSupplier,
+            LongSupplier startTimestampSupplier,
             LockToken immutableTsLock,
             PreCommitCondition condition) {
         return new SnapshotTransaction(
                 metricsManager,
-                keyValueService,
+                keyValueService.getTransactionKeyValueService(startTimestampSupplier),
                 timelockService,
                 lockWatchManager,
                 transactionService,
@@ -346,14 +347,15 @@ import java.util.stream.Collectors;
             C condition, ConditionAwareTransactionTask<T, C, E> task) throws E {
         checkOpen();
         long immutableTs = getApproximateImmutableTimestamp();
+        LongSupplier startTimestampSupplier = getStartTimestampSupplier();
         SnapshotTransaction transaction = new SnapshotTransaction(
                 metricsManager,
-                keyValueService,
+                keyValueService.getTransactionKeyValueService(startTimestampSupplier),
                 timelockService,
                 NoOpLockWatchManager.create(),
                 transactionService,
                 NoOpCleaner.INSTANCE,
-                getStartTimestampSupplier(),
+                startTimestampSupplier,
                 conflictDetectionManager,
                 sweepStrategyManager,
                 immutableTs,
@@ -448,12 +450,13 @@ import java.util.stream.Collectors;
         }
     }
 
-    private Supplier<Long> getStartTimestampSupplier() {
+    private LongSupplier getStartTimestampSupplier() {
+        // TODO(jakubk): Someone should impl this for LongSupplier
         return Suppliers.memoize(() -> {
             long freshTimestamp = timelockService.getFreshTimestamp();
             cleaner.punch(freshTimestamp);
             return freshTimestamp;
-        });
+        })::get;
     }
 
     @Override
@@ -508,7 +511,7 @@ import java.util.stream.Collectors;
 
     @Override
     public KeyValueService getKeyValueService() {
-        return keyValueService;
+        return keyValueService.bestEffortKeyValueService();
     }
 
     @Override

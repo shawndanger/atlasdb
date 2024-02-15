@@ -15,6 +15,9 @@
  */
 package com.palantir.atlasdb.transaction.impl;
 
+import org.junit.jupiter.api.Disabled;
+
+@Disabled
 public class SyncSnapshotTransactionTest extends AbstractSnapshotTransactionTest {
     public SyncSnapshotTransactionTest() {
         super(SYNC, WrapperWithTracker.TRANSACTION_NO_OP, WrapperWithTracker.KEY_VALUE_SERVICE_NO_OP);

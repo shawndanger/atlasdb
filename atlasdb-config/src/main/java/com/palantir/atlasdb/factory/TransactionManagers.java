@@ -57,6 +57,7 @@ import com.palantir.atlasdb.internalschema.persistence.CoordinationServices;
 import com.palantir.atlasdb.keyvalue.api.CheckAndSetCompatibility;
 import com.palantir.atlasdb.keyvalue.api.KeyValueService;
 import com.palantir.atlasdb.keyvalue.api.TableReference;
+import com.palantir.atlasdb.keyvalue.impl.DefaultTransactionKeyValueServiceManager;
 import com.palantir.atlasdb.keyvalue.impl.ProfilingKeyValueService;
 import com.palantir.atlasdb.keyvalue.impl.SweepStatsKeyValueService;
 import com.palantir.atlasdb.keyvalue.impl.TracingKeyValueService;
@@ -497,16 +498,16 @@ public abstract class TransactionManagers {
                 .<ConflictTracer>map(Function.identity())
                 .orElse(ConflictTracer.NO_OP);
 
-        Callback<TransactionManager> callbacks = new Callback.CallChain<>(
+        Callback<TransactionManager> callbacks = new Callback.CallChain<>(List.of(
                 timelockConsistencyCheckCallback(config(), runtime.get(), lockAndTimestampServices),
                 targetedSweep.singleAttemptCallback(),
                 asyncInitializationCallback(),
-                createClearsTable());
+                createClearsTable()));
 
         TransactionManager transactionManager = initializeCloseable(
                 () -> SerializableTransactionManager.createInstrumented(
                         metricsManager,
-                        keyValueService,
+                        new DefaultTransactionKeyValueServiceManager(keyValueService),
                         lockAndTimestampServices.timelock(),
                         lockAndTimestampServices.lockWatcher(),
                         lockAndTimestampServices.managedTimestampService(),
