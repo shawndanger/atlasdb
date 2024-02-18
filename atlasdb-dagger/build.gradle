@@ -37,7 +37,7 @@ dependencies {
 
 shadowJar {
   mergeServiceFiles()
-  classifier ''
+  archiveClassifier = ''
 
   relocate('dagger', 'com.palantir.atlasdb.shaded.dagger')
 
