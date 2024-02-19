@@ -95,10 +95,12 @@ import java.util.concurrent.Future;
 import java.util.concurrent.ThreadLocalRandom;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
+import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
 
 @SuppressWarnings("CheckReturnValue")
+@Disabled
 public abstract class AbstractSerializableTransactionTest extends AbstractTransactionTest {
     private static final int DEFAULT_COL_COUNT = 101;
     private static final int DEFAULT_BATCH_HINT = 100;

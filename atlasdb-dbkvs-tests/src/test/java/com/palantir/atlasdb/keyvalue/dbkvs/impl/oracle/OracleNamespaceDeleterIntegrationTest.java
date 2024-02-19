@@ -59,15 +59,11 @@ import java.util.stream.Collectors;
 import org.immutables.value.Value;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
-import org.junit.jupiter.api.Order;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.junit.jupiter.api.extension.RegisterExtension;
 
 @ExtendWith(DbKvsOracleExtension.class)
-/* TODO(boyoruk): Investigate why this is needed. If this class does not run first, then some of its methods fail.
- * Although this solution works, we should find the root cause. */
-@Order(1)
 public final class OracleNamespaceDeleterIntegrationTest extends TransactionTestSetup {
 
     @RegisterExtension
